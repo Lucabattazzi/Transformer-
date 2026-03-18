@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 **/venv*/
 **/env*/
+*Env*/
 
 # Ignore OS-specific files
 .DS_Store
