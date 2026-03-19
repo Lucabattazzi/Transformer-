@@ -1,5 +1,6 @@
 # Ignore Python cache and virtual environments
 __pycache__/
+__*/*
 *.pyc
 *.pyo
 **/venv*/
@@ -14,6 +15,15 @@ Thumbs.db
 build/
 dist/
 *.log
+
+# Ignore model checkpoints and datasets artifacts
+weights/
+*.pt
+
+# Ignore local Python environments
+.venv/
+envTrans/
+transEnv/
 
 # Ignore IDE/project settings
 .vscode/
