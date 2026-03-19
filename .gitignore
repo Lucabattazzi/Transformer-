@@ -1,6 +1,6 @@
 # Ignore Python cache and virtual environments
 __pycache__/
-__*/*
+__*/
 *.pyc
 *.pyo
 **/venv*/
@@ -17,7 +17,6 @@ dist/
 *.log
 
 # Ignore model checkpoints and datasets artifacts
-weights/
 *.pt
 
 # Ignore local Python environments
