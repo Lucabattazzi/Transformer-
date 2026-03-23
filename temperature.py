@@ -1,6 +1,11 @@
 import csv
 from pathlib import Path
 
+h = 8
+
+def splice_heads(A, h):
+    n = A.shape[0]
+    return A.view(n, h, n//h).permute(1, 0, 2).contiguous() # shape: (h, n, n//h)
 
 def initialize_temperature_files(temp_dir="temperature"):
     """
@@ -30,7 +35,7 @@ def initialize_temperature_files(temp_dir="temperature"):
     return files
 
 
-def save_cross_attention_gradients(model, global_step, frequency=50, temp_dir="temperature"):
+def save_cross_attention_temperatures(model, global_step, frequency=50, temp_dir="temperature"):
     """
     Salva la norma dei gradienti della cross-attention ogni `frequency` iterazioni.
     Per ogni matrice di pesi (w_q, w_k, w_v, w_o), salva la norma del gradiente
@@ -48,7 +53,8 @@ def save_cross_attention_gradients(model, global_step, frequency=50, temp_dir="t
         return
     
     # Estrai gradienti dalla cross-attention di ogni layer del decoder
-    gradient_norms = {
+
+    temperatures = {
         'query': [],
         'key': [],
         'value': [],
@@ -61,22 +67,34 @@ def save_cross_attention_gradients(model, global_step, frequency=50, temp_dir="t
         
         # Estrai e accumula le norme dei gradienti
         if cross_attn.w_q.weight.grad is not None:
-            gradient_norms['query'].append(cross_attn.w_q.weight.grad.norm().item())
+            Wq_split = splice_heads(cross_attn.w_q.weight.grad, h)  # (h, 512, 64)
+            for head_idx in range(h):
+                head_grad_norm = Wq_split[head_idx].norm().item()
+                temperatures['query'].append(head_grad_norm ** 2)
         
         if cross_attn.w_k.weight.grad is not None:
-            gradient_norms['key'].append(cross_attn.w_k.weight.grad.norm().item())
+            Wk_split = splice_heads(cross_attn.w_k.weight.grad, h)  # (h, 512, 64)
+            for head_idx in range(h):
+                head_grad_norm = Wk_split[head_idx].norm().item()
+                temperatures['key'].append(head_grad_norm ** 2)
         
         if cross_attn.w_v.weight.grad is not None:
-            gradient_norms['value'].append(cross_attn.w_v.weight.grad.norm().item())
+            Wv_split = splice_heads(cross_attn.w_v.weight.grad, h)  # (h, 512, 64)
+            for head_idx in range(h):
+                head_grad_norm = Wv_split[head_idx].norm().item()
+                temperatures['value'].append(head_grad_norm ** 2)
         
         if cross_attn.w_o.weight.grad is not None:
-            gradient_norms['output'].append(cross_attn.w_o.weight.grad.norm().item())
-    
+            Wo_split = splice_heads(cross_attn.w_o.weight.grad, h)  # (h, 512, 64)
+            for head_idx in range(h):
+                head_grad_norm = Wo_split[head_idx].norm().item()
+                temperatures['output'].append(head_grad_norm ** 2)
+
     # Salva tutte le norme (una colonna per ogni layer)
     temp_path = Path(temp_dir)
     temp_path.mkdir(exist_ok=True)
     
-    for key, norms in gradient_norms.items():
+    for key, norms in temperatures.items():
         if norms:
             file_path = temp_path / f'crossAttention{key.capitalize()}.csv'
             
@@ -84,7 +102,7 @@ def save_cross_attention_gradients(model, global_step, frequency=50, temp_dir="t
             if not file_path.exists():
                 with open(file_path, 'w', newline='') as f:
                     writer = csv.writer(f)
-                    header = ['iteration'] + [f'layer_{i}' for i in range(len(norms))]
+                    header = ['iteration'] + [f'head_{i}' for i in range(h)]
                     writer.writerow(header)
             
             # Scrivi i dati
@@ -92,5 +110,3 @@ def save_cross_attention_gradients(model, global_step, frequency=50, temp_dir="t
                 writer = csv.writer(f)
                 row = [global_step] + norms
                 writer.writerow(row)
-
-

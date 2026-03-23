@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 
-from temperature import save_cross_attention_gradients
+from temperature import save_cross_attention_temperatures
 
 from dataset import BilingualDataset, causal_mask
 from model import build_transformer
@@ -219,7 +219,7 @@ def train_model(config):
             # Backpropagate the loss
             loss.backward()
 
-            save_cross_attention_gradients(model, global_step, frequency=2)
+            save_cross_attention_temperatures(model, global_step, frequency=2)
 
 
             # Update the weights

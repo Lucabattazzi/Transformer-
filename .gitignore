@@ -14,6 +14,9 @@ Thumbs.db
 # Ignore build and log files
 build/
 dist/
+weights/
+runs/
+temperature/
 *.log
 
 # Ignore model checkpoints and datasets artifacts
