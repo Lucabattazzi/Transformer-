@@ -183,7 +183,8 @@ class  ProjectionLayer(nn.Module): # from output of the decoder to the size of t
         self.proj = nn.Linear(d_model, vocab_size) # linear layer to project the output of the decoder to the size of the vocabulary
 
     def forward(self, x):
-        return torch.log_softmax(self.proj(x), dim = -1) # shape (batch size, sequence length, vocab size) (logits for each word in the vocabulary)
+        return self.proj(x) # shape (batch size, sequence length, vocab size) (logits for each word in the vocabulary)
+        # softmax is already applied by the CrossEntropyLoss()
     
 
 class Transformer(nn.Module):
