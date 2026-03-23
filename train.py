@@ -116,7 +116,7 @@ def get_or_build_tokenizer(config, ds, lang): # configuration of the model, data
 
 def get_ds(config):
     # It only has the train split, so we divide it overselves
-    ds_raw = load_dataset('opus_books', f'{config['lang_src']}-{config['lang_tgt']}', split='train')
+    ds_raw = load_dataset('opus_books', f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -178,8 +178,9 @@ def train_model(config):
     if config['preload']:
         model_filename = get_weights_file_path(config, config['preload'])
         print(f'Preloading model {model_filename}')
-        state = torch.load(model_filename)
+        state = torch.load(model_filename, map_location=device)
         initial_epoch = state['epoch'] + 1
+        model.load_state_dict(state['model_state_dict'])
         optimizer.load_state_dict(state['optimizer_state_dict'])
         global_step = state['global_step']
 
@@ -237,6 +238,6 @@ def train_model(config):
 
 if __name__ == '__main__':
     #warnings.simplefilter("default")
-    config = get_config()
+    config = get_config(preload=None)
     train_model(config)
 
