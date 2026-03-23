@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-def get_config():
+def get_config(preload=None):
     return{
         "batch_size": 8,
         "num_epochs": 20,
@@ -13,10 +13,9 @@ def get_config():
         "lang_tgt": "it",
         "model_folder": "weights",
         "model_basename": "tmodel_",
-        "preload": None,
+        "preload": preload,  
         "tokenizer_file": "tokenizer_{0}.json",
         "experiment_name": "runs/model"
-
     }
 
 def get_weights_file_path(config, epoch: str):
