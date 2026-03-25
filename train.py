@@ -153,7 +153,7 @@ def get_ds(config):
 
 
 def get_model(config, vocab_src_len, vocab_tgt_len):
-    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], config['d_model'], N = 1)
+    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], config['d_model'], N = 6)
     return model
 
 
@@ -219,7 +219,7 @@ def train_model(config):
             # Backpropagate the loss
             loss.backward()
 
-            save_cross_attention_temperatures(model, global_step, frequency=2)
+            # save_cross_attention_temperatures(model, global_step, frequency=2)
 
 
             # Update the weights
@@ -228,7 +228,7 @@ def train_model(config):
 
 
             if global_step%50 == 0:
-                run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_ierator.write(msg), global_step, writer)
+               run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_ierator.write(msg), global_step, writer)
             global_step += 1
 
             # save the model at the end of eac epoch
@@ -243,6 +243,6 @@ def train_model(config):
 
 if __name__ == '__main__':
     #warnings.simplefilter("default")
-    config = get_config(preload=None)
+    config = get_config(preload="01")
     train_model(config)
 

@@ -54,15 +54,16 @@ def save_cross_attention_temperatures(model, global_step, frequency=50, temp_dir
     
     # Estrai gradienti dalla cross-attention di ogni layer del decoder
 
-    temperatures = {
+
+    # Itera su tutti i layer del decoder
+    for layer_idx, layer in enumerate(model.decoder.layers):
+        temperatures = {
         'query': [],
         'key': [],
         'value': [],
         'output': []
     }
     
-    # Itera su tutti i layer del decoder
-    for layer_idx, layer in enumerate(model.decoder.layers):
         cross_attn = layer.cross_attention_block
         
         # Estrai e accumula le norme dei gradienti
@@ -91,22 +92,22 @@ def save_cross_attention_temperatures(model, global_step, frequency=50, temp_dir
                 temperatures['output'].append(head_grad_norm ** 2)
 
     # Salva tutte le norme (una colonna per ogni layer)
-    temp_path = Path(temp_dir)
-    temp_path.mkdir(exist_ok=True)
-    
-    for key, norms in temperatures.items():
-        if norms:
-            file_path = temp_path / f'crossAttention{key.capitalize()}.csv'
-            
-            # Se il file non esiste, crea l'header
-            if not file_path.exists():
-                with open(file_path, 'w', newline='') as f:
+        temp_path = Path(temp_dir)
+        temp_path.mkdir(exist_ok=True)
+
+        for key, norms in temperatures.items():
+            if norms:
+                file_path = temp_path / f'crossAttention{key.capitalize()}_{layer_idx}.csv'
+
+                # Se il file non esiste, crea l'header
+                if not file_path.exists():
+                    with open(file_path, 'w', newline='') as f:
+                        writer = csv.writer(f)
+                        header = ['iteration'] + [f'head_{i}' for i in range(h)]
+                        writer.writerow(header)
+
+                # Scrivi i dati
+                with open(file_path, 'a', newline='') as f:
                     writer = csv.writer(f)
-                    header = ['iteration'] + [f'head_{i}' for i in range(h)]
-                    writer.writerow(header)
-            
-            # Scrivi i dati
-            with open(file_path, 'a', newline='') as f:
-                writer = csv.writer(f)
-                row = [global_step] + norms
-                writer.writerow(row)
+                    row = [global_step] + norms
+                    writer.writerow(row)

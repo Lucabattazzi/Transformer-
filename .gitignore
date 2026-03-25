@@ -14,7 +14,7 @@ Thumbs.db
 # Ignore build and log files
 build/
 dist/
-weights/
+weights*/
 runs/
 temperature/
 *.log
