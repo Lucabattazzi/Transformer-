@@ -283,6 +283,6 @@ def train_model(config):
 
 if __name__ == '__main__':
     #warnings.simplefilter("default")
-    config = get_config(preload=None) # set to None to start from scratch, or to a string like '02' to load the model from epoch 2
+    config = get_config(preload="07") # set to None to start from scratch, or to a string like '02' to load the model from epoch 2
     train_model(config)
 
