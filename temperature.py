@@ -96,7 +96,7 @@ def save_cross_attention_temperatures(model, global_step, frequency=50, temp_dir
     
     for key, norms in temperatures.items():
         if norms:
-            file_path = temp_path / f'crossAttention{key.capitalize()}.csv'
+            file_path = temp_path / f'crossAttention{key.capitalize()}_{layer_idx}.csv'
             
             # Se il file non esiste, crea l'header
             if not file_path.exists():
