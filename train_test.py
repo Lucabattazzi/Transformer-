@@ -51,7 +51,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
         prob = model.project(out[:, -1])
 
         # select token associated with max probability 
-        _, next_word = torch.max(prob, dim=1) # vector of max values along rows
+        _, next_word = torch.max(prob, dim=1)
         decoder_input = torch.cat([decoder_input, torch.empty(1,1).type_as(source).fill_(next_word.item()).to(device)], dim= 1)
 
         if next_word == eos_idx:
@@ -149,7 +149,7 @@ def get_ds(config):
     
 
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)
-    val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
+    val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True) # testing: it should have val_ds
 
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
 
@@ -175,19 +175,9 @@ def train_model(config):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
-    # Setup loss CSV file for continuous saving
-    loss_csv_path = Path(config['model_folder']) / 'loss_history.csv'
-    loss_csv_exists = loss_csv_path.exists()
-
-    if not loss_csv_exists:
-        with open(loss_csv_path, 'w', newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(['epoch', 'global_step', 'loss'])
-
     # restore model/ training if crashes occur
     initial_epoch = 0
     global_step = 0
-    loss_record = pd.DataFrame(columns=['epoch', 'global_step', 'loss'])
     
     if config['preload']:
         model_filename = get_weights_file_path(config, config['preload'])
@@ -197,25 +187,6 @@ def train_model(config):
         model.load_state_dict(state['model_state_dict'])
         optimizer.load_state_dict(state['optimizer_state_dict'])
         global_step = state['global_step']
-        
-        # Clean up CSV: remove rows from epochs >= initial_epoch (interrupted training)
-        if loss_csv_path.exists():
-            loss_record = pd.read_csv(loss_csv_path)
-            # Keep only rows from completed epochs
-            loss_record = loss_record[loss_record['epoch'] < initial_epoch]
-            # Rewrite the CSV with clean data
-            loss_record.to_csv(loss_csv_path, index=False)
-            print(f"CSV cleaned: kept data up to epoch {initial_epoch - 1}")
-    else:
-        # Training from zero: delete old loss history
-        if loss_csv_path.exists():
-            loss_csv_path.unlink()
-            print("Old loss_history.csv deleted. Starting fresh training.")
-        # Create new CSV with header
-        with open(loss_csv_path, 'w', newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(['epoch', 'global_step', 'loss'])
-
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device) # ignore padding in the loss. Label smoothing makes the model less confident about his decisions -> less overfitting
 
@@ -230,8 +201,8 @@ def train_model(config):
             decoder_mask = batch['decoder_mask'].to(device) # (B, 1, seq_len, seq_len) hide padding and future tokens
 
             # Run the tensors through the encoder, decoder and the projection layer
-            encoder_output = model.encode(encoder_input, encoder_mask) # (B, seq_len, vocab)
-            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) # (B, seq_len, vocab)
+            encoder_output = model.encode(encoder_input, encoder_mask) # (B, seq_len, d_model)
+            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) # (B, seq_len, d_model)
             proj_output = model.project(decoder_output) # (B, seq_len, tgt_vocab_size)
 
             # Compare the output with the label
@@ -240,18 +211,6 @@ def train_model(config):
             # Compute the loss using a simple cross entropy
             loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1)) # (B, Seq_Len, tgt_vocab_size) -> (B*Seq_Len, tgt_vocab_size)
             batch_ierator.set_postfix({f"loss": f"{loss.item():6.3f}"})
-            
-            if global_step % 100 == 0:
-                # Save to DataFrame and append to CSV file immediately
-                new_row = pd.DataFrame({'epoch': [epoch], 'global_step': [global_step], 'loss': [loss.item()]})
-                loss_record = pd.concat([loss_record, new_row], ignore_index=True)
-                
-                # Write immediately to CSV file (append mode for crash safety)
-                with open(loss_csv_path, 'a', newline='') as f:
-                    csv_writer = csv.writer(f)
-                    csv_writer.writerow([epoch, global_step, loss.item()])
-                
-                run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_ierator.write(msg), global_step, writer)
             
             # Log the loss
             writer.add_scalar('train loss', loss.item(), global_step)
@@ -268,17 +227,20 @@ def train_model(config):
 
             global_step += 1
 
-            # save the model at the end of eac epoch
+            output = proj_output[0]
 
-            model_filename = get_weights_file_path(config, f'{epoch:02d}')
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'global_step': global_step
-            }, model_filename)
+            model_out_text = ""
+            for i in proj_output[0]:
+                idx = i.argmax().item()
+                model_out_text += tokenizer_tgt.decode([idx]) + ' '
 
-    loss_record.to_csv('loss_history.csv', index=False)
+            # model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            # model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
+
+            print('#'*80)
+            print(f'SOURCE: {batch["src_text"][0]}')
+            print(f'TARGET: {batch["tgt_text"][0]}')
+            print(f'PREDICTED: {model_out_text}')
 
 
 if __name__ == '__main__':
