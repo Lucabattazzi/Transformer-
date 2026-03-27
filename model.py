@@ -42,6 +42,8 @@ class LayerNormalization(nn.Module):
     def __init__(self, eps: float = 1e-6) -> None:
         super().__init__()
         self.eps = eps
+        
+        # on Umar's github alpha and beta are of size 512: torch.ones(features), which i guess equals d_model (?)
         self.alpha = nn.Parameter(torch.ones(1)) # learnable multiplicative coefficients (to introduce more degrees of freedom)
         self.bias = nn.Parameter(torch.zeros(1)) # learnable bias term
     def forward(self, x):

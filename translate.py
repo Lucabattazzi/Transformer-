@@ -18,7 +18,7 @@ def translate(sentence: str):
 
     # Load the pretrained weights
     model_filename = latest_weights_file_path(config)
-    state = torch.load(model_filename)
+    state = torch.load(model_filename, map_location=device)
     model.load_state_dict(state['model_state_dict'])
 
     # if the sentence is a number use it as an index to the test set
@@ -76,4 +76,5 @@ def translate(sentence: str):
     return tokenizer_tgt.decode(decoder_input[0].tolist())
     
 #read sentence from argument
-translate(sys.argv[1] if len(sys.argv) > 1 else "I am not a very good a student.")
+if __name__ == "__main__":
+    translate(sys.argv[1] if len(sys.argv) > 1 else "I am not a very good a student.")
